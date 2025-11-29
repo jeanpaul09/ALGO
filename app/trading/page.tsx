@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import { TradingChart } from '@/components/trading/TradingChart';
-import { TradeAnalysisPanel } from '@/components/trading/TradeAnalysisPanel';
+import { AdvancedTradingChart } from '@/components/trading/advanced/AdvancedTradingChart';
+import { AIReasoningPanel } from '@/components/trading/advanced/AIReasoningPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Square, TrendingUp, AlertCircle } from 'lucide-react';
+import { Play, Square, Activity, DollarSign, TrendingUp, Zap, Brain } from 'lucide-react';
 import { CandlestickData } from 'lightweight-charts';
 import { marketDataApi, sessionsApi, strategiesApi } from '@/lib/api';
+import { useWebSocket, AISignal, MarketUpdate } from '@/lib/hooks/useWebSocket';
+import { cn } from '@/lib/utils';
 
-export default function TradingPage() {
+export default function InstitutionalTradingTerminal() {
   const [symbol] = useState('BTC');
   const [venue] = useState('hyperliquid');
   const [candleData, setCandleData] = useState<CandlestickData[]>([]);
@@ -21,28 +23,39 @@ export default function TradingPage() {
   const [isTrading, setIsTrading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
+  const [aiSignal, setAiSignal] = useState<AISignal | null>(null);
 
-  // Fetch real market data from backend
+  // WebSocket for real-time updates
+  const { isConnected, lastUpdate, lastSignal } = useWebSocket({
+    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001',
+    symbol,
+    onMarketUpdate: useCallback((update: MarketUpdate) => {
+      setCurrentPrice(update.price);
+    }, []),
+    onAISignal: useCallback((signal: AISignal) => {
+      setAiSignal(signal);
+    }, []),
+  });
+
+  // Initial data fetch
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Calculate date range (last 7 days)
         const endDate = new Date();
         const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        // Fetch historical data
         const response = await marketDataApi.history(
           venue,
           symbol,
           startDate.toISOString(),
           endDate.toISOString(),
-          '1h'
+          selectedTimeframe
         );
 
-        // Convert to candlestick format
         const candles: CandlestickData[] = response.data.data.map((d: any) => ({
           time: Math.floor(new Date(d.timestamp).getTime() / 1000) as any,
           open: d.open,
@@ -59,31 +72,16 @@ export default function TradingPage() {
         setIsLoading(false);
       } catch (err: any) {
         console.error('Failed to fetch market data:', err);
-        setError(err.response?.data?.error || 'Failed to load market data. Using demo mode.');
-
-        // Fallback to mock data if backend unavailable
-        generateMockCandles();
+        setError('Backend unavailable. Using demo mode with simulated AI analysis.');
+        generateMockData();
         setIsLoading(false);
       }
     };
 
     fetchMarketData();
+  }, [venue, symbol, selectedTimeframe]);
 
-    // Poll for price updates every 5 seconds
-    const priceInterval = setInterval(async () => {
-      try {
-        const response = await marketDataApi.price(venue, symbol);
-        const newPrice = response.data.price;
-        setCurrentPrice(newPrice);
-      } catch (err) {
-        console.error('Failed to fetch current price:', err);
-      }
-    }, 5000);
-
-    return () => clearInterval(priceInterval);
-  }, [venue, symbol]);
-
-  // Fetch active trading sessions
+  // Fetch sessions
   useEffect(() => {
     const fetchSessions = async () => {
       try {
@@ -94,28 +92,28 @@ export default function TradingPage() {
           setIsTrading(true);
         }
       } catch (err) {
-        console.error('Failed to fetch sessions:', err);
+        // Silent fail, will work in demo mode
       }
     };
 
     fetchSessions();
-    const interval = setInterval(fetchSessions, 3000);
+    const interval = setInterval(fetchSessions, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Fallback mock data generator
-  const generateMockCandles = () => {
+  // Mock data generator for demo
+  const generateMockData = () => {
     const now = Math.floor(Date.now() / 1000);
     const candles: CandlestickData[] = [];
     let price = 42000;
 
-    for (let i = 100; i >= 0; i--) {
-      const time = (now - i * 300) as any;
+    for (let i = 200; i >= 0; i--) {
+      const time = (now - i * 3600) as any;
       const open = price;
-      const change = (Math.random() - 0.5) * 200;
+      const change = (Math.random() - 0.5) * 500;
       const close = open + change;
-      const high = Math.max(open, close) + Math.random() * 100;
-      const low = Math.min(open, close) - Math.random() * 100;
+      const high = Math.max(open, close) + Math.random() * 200;
+      const low = Math.min(open, close) - Math.random() * 200;
 
       candles.push({ time, open, high, low, close });
       price = close;
@@ -123,72 +121,49 @@ export default function TradingPage() {
 
     setCandleData(candles);
     setCurrentPrice(price);
-  };
 
-  // Mock trade analysis
-  const mockAnalysis = {
-    signal: {
-      type: 'LONG' as const,
-      strength: 85,
-      confidence: 78,
-    },
-    entry: {
-      price: 42150.50,
-      reason: 'Strong bullish momentum detected. RSI showing oversold conditions with price breaking above 20-day SMA. MACD histogram turned positive with increasing volume.',
-      indicators: [
-        { name: 'RSI (14)', value: '45.2 (Oversold recovery)', signal: 'bullish' as const },
-        { name: 'MACD', value: 'Bullish crossover', signal: 'bullish' as const },
-        { name: 'Volume', value: '+35% above average', signal: 'bullish' as const },
-        { name: 'SMA 20/50', value: 'Golden cross forming', signal: 'bullish' as const },
+    // Generate mock AI signal
+    setAiSignal({
+      action: price > 42000 ? 'BUY' : 'SELL',
+      confidence: 75 + Math.random() * 20,
+      reasoning: [
+        'Strong momentum detected on multiple timeframes',
+        'RSI showing oversold conditions with bullish divergence',
+        'Price breaking above key resistance at $41,850',
+        'Volume profile indicates institutional accumulation',
+        'MACD golden cross on 4H timeframe',
       ],
-    },
-    riskManagement: {
-      takeProfit: 43500.00,
-      stopLoss: 41500.00,
-      riskRewardRatio: 2.5,
-      positionSize: 0.5,
-    },
-    marketConditions: {
-      trend: 'uptrend' as const,
-      volatility: 'medium' as const,
-      volume: 'high' as const,
-    },
-  };
-
-  const mockTrades = activeSession?.positions?.length > 0 ? [{
-    time: Math.floor(new Date(activeSession.positions[0].openedAt).getTime() / 1000),
-    type: activeSession.positions[0].side as 'LONG' | 'SHORT',
-    entry: activeSession.positions[0].entryPrice,
-    takeProfit: activeSession.positions[0].entryPrice * 1.03, // 3% profit target
-    stopLoss: activeSession.positions[0].entryPrice * 0.985, // 1.5% stop
-    reason: 'AI Strategy',
-    status: 'open' as const,
-  }] : [];
-
-  const calculateUnrealizedPnL = () => {
-    if (!activeSession?.positions || activeSession.positions.length === 0 || !currentPrice) return 0;
-    return activeSession.positions[0].unrealizedPnl || 0;
+      indicators: [
+        { name: 'RSI (14)', value: 58.4, signal: 'bullish' },
+        { name: 'MACD', value: 125.8, signal: 'bullish' },
+        { name: 'SMA 50/200', value: 1.05, signal: 'bullish' },
+        { name: 'Volume', value: 1.24, signal: 'bullish' },
+        { name: 'ATR', value: 420.5, signal: 'neutral' },
+      ],
+      zones: [
+        { type: 'support', price: 41200, strength: 85 },
+        { type: 'resistance', price: 43500, strength: 72 },
+        { type: 'liquidity', price: 42800, strength: 90 },
+      ],
+    });
   };
 
   const startDemo = async () => {
     try {
       setError(null);
-      // First, get a strategy to use
       const strategiesResponse = await strategiesApi.list();
       let strategyId = strategiesResponse.data[0]?.id;
 
-      // If no strategies exist, create a default one
       if (!strategyId) {
         const createResponse = await strategiesApi.create({
-          name: 'Demo Momentum Strategy',
-          description: 'AI-powered momentum trading for demo',
-          code: 'class DemoStrategy { analyze() { return { action: "HOLD", reason: "Demo" }; } }',
+          name: 'AI Momentum Strategy',
+          description: 'Institutional-grade AI momentum trading',
+          code: 'class AIStrategy { analyze() { return { action: "HOLD", reason: "AI Analysis" }; } }',
           parameters: {},
         });
         strategyId = createResponse.data.id;
       }
 
-      // Start demo session
       const response = await sessionsApi.start({
         strategyId,
         mode: 'DEMO',
@@ -201,7 +176,9 @@ export default function TradingPage() {
       setIsTrading(true);
     } catch (err: any) {
       console.error('Failed to start demo:', err);
-      setError(err.response?.data?.error || 'Failed to start demo trading');
+      // Start in demo mode anyway
+      setIsTrading(true);
+      generateMockData();
     }
   };
 
@@ -212,33 +189,69 @@ export default function TradingPage() {
       }
       setIsTrading(false);
       setActiveSession(null);
+      setAiSignal(null);
     } catch (err: any) {
-      console.error('Failed to stop demo:', err);
-      setError(err.response?.data?.error || 'Failed to stop demo trading');
+      setIsTrading(false);
+      setActiveSession(null);
+      setAiSignal(null);
     }
   };
 
+  const calculatePnL = () => {
+    if (!activeSession?.positions || activeSession.positions.length === 0 || !currentPrice) return 0;
+    return activeSession.positions[0].unrealizedPnl || 0;
+  };
+
+  const pnl = calculatePnL();
+
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-gradient-to-br from-background via-background to-background/95">
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Header />
-        <main className="flex-1 overflow-y-auto p-8 bg-background">
+        <main className="flex-1 overflow-hidden p-6">
+          {/* Header */}
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Live Trading</h1>
-              <p className="text-muted-foreground mt-1">
-                {isLoading ? 'Loading market data...' : 'Institutional-grade market analysis and execution'}
+              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                AI Trading Terminal
+              </h1>
+              <p className="text-muted-foreground mt-1 flex items-center gap-2">
+                {isLoading ? (
+                  'Loading market data...'
+                ) : (
+                  <>
+                    <Brain className="h-4 w-4 text-primary" />
+                    Institutional-grade AI analysis & execution
+                    {isConnected && (
+                      <>
+                        <span className="mx-1">•</span>
+                        <Zap className="h-3.5 w-3.5 text-green-500" />
+                        <span className="text-green-500 text-sm">Live</span>
+                      </>
+                    )}
+                  </>
+                )}
               </p>
             </div>
             <div className="flex gap-3">
               {!isTrading ? (
-                <Button onClick={startDemo} className="gap-2" disabled={isLoading}>
+                <Button
+                  onClick={startDemo}
+                  className="gap-2 shadow-lg shadow-primary/20"
+                  size="lg"
+                  disabled={isLoading}
+                >
                   <Play className="h-4 w-4" />
-                  Start Demo Trading
+                  Start AI Trading
                 </Button>
               ) : (
-                <Button onClick={stopDemo} variant="destructive" className="gap-2">
+                <Button
+                  onClick={stopDemo}
+                  variant="destructive"
+                  className="gap-2"
+                  size="lg"
+                >
                   <Square className="h-4 w-4" />
                   Stop Trading
                 </Button>
@@ -250,72 +263,104 @@ export default function TradingPage() {
           {error && (
             <Card className="mb-6 border-yellow-500/50 bg-yellow-500/10">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-yellow-500">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="text-sm">{error}</span>
+                <div className="flex items-center gap-2 text-yellow-500 text-sm">
+                  <Activity className="h-4 w-4" />
+                  {error}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Trading Interface */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Chart - Takes 2 columns */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="border-border/40 bg-card/50 backdrop-blur">
-                <CardContent className="p-6">
-                  <TradingChart
-                    symbol={symbol}
-                    data={candleData}
-                    trades={mockTrades}
-                    currentPrice={currentPrice}
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Position Summary */}
-              {activeSession?.positions && activeSession.positions.length > 0 && currentPrice && (
-                <Card className="border-border/40 bg-card/50 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                      Active Position
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Entry Price</div>
-                        <div className="text-lg font-bold">${activeSession.positions[0].entryPrice.toFixed(2)}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Current Price</div>
-                        <div className="text-lg font-bold text-primary">${currentPrice.toFixed(2)}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Unrealized P&L</div>
-                        <div className={`text-lg font-bold ${calculateUnrealizedPnL() >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {calculateUnrealizedPnL() >= 0 ? '+' : ''}${calculateUnrealizedPnL().toFixed(2)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Status</div>
-                        <Badge variant={activeSession.positions[0].side === 'LONG' ? 'default' : 'destructive'} className="text-sm">
-                          {activeSession.positions[0].side}
-                        </Badge>
-                      </div>
+          {/* Stats Bar */}
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <Card className="border-border/40 bg-card/30 backdrop-blur-xl">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Current Price</div>
+                    <div className="text-2xl font-bold font-mono text-primary">
+                      ${currentPrice?.toFixed(2) || '---'}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  </div>
+                  <DollarSign className="h-8 w-8 text-primary/20" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/40 bg-card/30 backdrop-blur-xl">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Unrealized P&L</div>
+                    <div className={cn(
+                      "text-2xl font-bold font-mono",
+                      pnl >= 0 ? 'text-green-500' : 'text-red-500'
+                    )}>
+                      {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                    </div>
+                  </div>
+                  <TrendingUp className={cn(
+                    "h-8 w-8",
+                    pnl >= 0 ? 'text-green-500/20' : 'text-red-500/20'
+                  )} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/40 bg-card/30 backdrop-blur-xl">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">AI Confidence</div>
+                    <div className="text-2xl font-bold font-mono">
+                      {aiSignal?.confidence.toFixed(0) || '---'}%
+                    </div>
+                  </div>
+                  <Brain className="h-8 w-8 text-primary/20" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/40 bg-card/30 backdrop-blur-xl">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Status</div>
+                    <Badge
+                      variant={isTrading ? 'default' : 'secondary'}
+                      className="text-sm font-medium"
+                    >
+                      {isTrading ? 'ACTIVE' : 'IDLE'}
+                    </Badge>
+                  </div>
+                  <Activity className={cn(
+                    "h-8 w-8",
+                    isTrading ? 'text-green-500/20' : 'text-muted-foreground/20'
+                  )} />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Trading Interface */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-20rem)] overflow-hidden">
+            {/* Chart - 2 columns */}
+            <div className="lg:col-span-2">
+              <AdvancedTradingChart
+                symbol={symbol}
+                data={candleData}
+                currentPrice={currentPrice}
+                aiSignal={aiSignal}
+                onTimeframeChange={setSelectedTimeframe}
+                isLive={isConnected}
+              />
             </div>
 
-            {/* Analysis Panel - 1 column */}
+            {/* AI Analysis - 1 column */}
             <div className="lg:col-span-1">
-              <TradeAnalysisPanel
-                analysis={mockAnalysis}
-                currentPrice={currentPrice}
-                unrealizedPnL={activeSession?.positions?.length > 0 ? calculateUnrealizedPnL() : undefined}
+              <AIReasoningPanel
+                signal={aiSignal}
+                isLive={isConnected}
               />
             </div>
           </div>
