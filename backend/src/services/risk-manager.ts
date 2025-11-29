@@ -70,7 +70,7 @@ export class RiskManager {
       },
     });
 
-    return trades.reduce((sum, trade) => sum + (trade.pnl || 0) - trade.fee, 0);
+    return trades.reduce((sum: number, trade: any) => sum + (trade.pnl || 0) - trade.fee, 0);
   }
 
   private async getOpenPositionsCount(sessionId: string): Promise<number> {

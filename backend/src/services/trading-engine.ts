@@ -139,9 +139,9 @@ export class TradingEngine {
     currentPosition: PositionInfo | null
   ): Promise<void> {
     // Close existing position if needed
-    if (currentPosition && (signal.action === 'SELL' && currentPosition.side === 'LONG') ||
+    if (currentPosition && ((signal.action === 'SELL' && currentPosition.side === 'LONG') ||
         (signal.action === 'BUY' && currentPosition.side === 'SHORT') ||
-        signal.action === 'CLOSE') {
+        signal.action === 'CLOSE')) {
       await this.closePosition(currentPosition, currentPrice, signal.reason);
     }
 
