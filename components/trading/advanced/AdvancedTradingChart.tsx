@@ -7,11 +7,11 @@ import {
   type ISeriesApi,
   type CandlestickData,
 } from 'lightweight-charts';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Maximize2, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AISignal } from '@/lib/hooks/useWebSocket';
+import { MinimizableControls } from './MinimizableControls';
 
 interface AdvancedTradingChartProps {
   symbol: string;
@@ -23,12 +23,12 @@ interface AdvancedTradingChartProps {
 }
 
 const TIMEFRAMES = [
-  { label: '1m', value: '1m', interval: 60 },
-  { label: '5m', value: '5m', interval: 300 },
-  { label: '15m', value: '15m', interval: 900 },
-  { label: '1H', value: '1h', interval: 3600 },
-  { label: '4H', value: '4h', interval: 14400 },
-  { label: '1D', value: '1d', interval: 86400 },
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '1H', value: '1h' },
+  { label: '4H', value: '4h' },
+  { label: '1D', value: '1d' },
 ];
 
 export function AdvancedTradingChart({
@@ -194,66 +194,16 @@ export function AdvancedTradingChart({
 
   return (
     <div className="relative">
-      {/* Chart Controls */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
-        {/* Left: Symbol & Price */}
-        <div className="flex items-center gap-4 bg-card/90 backdrop-blur-xl rounded-lg p-3 border border-border/40 shadow-lg">
-          <div>
-            <div className="text-xs text-muted-foreground">Symbol</div>
-            <div className="text-lg font-bold">{symbol}</div>
-          </div>
-          {currentPrice && (
-            <>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <div className="text-xs text-muted-foreground">Last Price</div>
-                <div className="text-lg font-bold font-mono text-primary">
-                  ${currentPrice.toFixed(2)}
-                </div>
-              </div>
-              {isLive && (
-                <>
-                  <div className="h-8 w-px bg-border" />
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-medium text-green-500">LIVE</span>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Right: Timeframes & Controls */}
-        <div className="flex items-center gap-2 bg-card/90 backdrop-blur-xl rounded-lg p-1.5 border border-border/40 shadow-lg">
-          <div className="flex items-center gap-0.5 px-1.5">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </div>
-          {TIMEFRAMES.map((tf) => (
-            <Button
-              key={tf.value}
-              variant={selectedTimeframe === tf.value ? 'default' : 'ghost'}
-              size="sm"
-              className={cn(
-                'h-8 px-3 text-xs font-medium transition-all',
-                selectedTimeframe === tf.value && 'shadow-md'
-              )}
-              onClick={() => handleTimeframeChange(tf.value)}
-            >
-              {tf.label}
-            </Button>
-          ))}
-          <div className="h-6 w-px bg-border mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={toggleFullscreen}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      {/* Minimizable Controls */}
+      <MinimizableControls
+        symbol={symbol}
+        currentPrice={currentPrice}
+        selectedTimeframe={selectedTimeframe}
+        timeframes={TIMEFRAMES}
+        onTimeframeChange={handleTimeframeChange}
+        onFullscreen={toggleFullscreen}
+        isLive={isLive}
+      />
 
       {/* AI Signal Badge */}
       {aiSignal && aiSignal.action !== 'HOLD' && (
