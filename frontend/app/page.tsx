@@ -228,7 +228,7 @@ export default function Terminal() {
 
         {/* Chart Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <SimpleCandlestickChart symbol="BTC" interval="1h" />
+          <SimpleCandlestickChart symbol="BTC" />
         </div>
 
         {/* AI Brain Feed */}
