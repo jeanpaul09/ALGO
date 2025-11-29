@@ -1,3 +1,4 @@
+// AI Brain Feed - Real-time analysis stream component
 'use client';
 
 import { useEffect, useRef } from 'react';
