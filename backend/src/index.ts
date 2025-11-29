@@ -8,7 +8,7 @@ import { setupRoutes } from './routes';
 import { WebSocketManager } from './services/websocket';
 import { TradingOrchestrator } from './services/trading-orchestrator';
 import { MarketStreamingService } from './services/market-streaming';
-import { AIAnalysisEngine } from './services/ai-analysis-engine';
+import { IntelligentAIEngine } from './services/intelligent-ai-engine';
 
 dotenv.config();
 
@@ -29,8 +29,8 @@ async function main() {
   // Initialize Market Streaming
   const marketStreaming = new MarketStreamingService(wsManager);
 
-  // Initialize AI Analysis Engine
-  const aiEngine = new AIAnalysisEngine(wsManager);
+  // Initialize Intelligent AI Engine with demo trading
+  const aiEngine = new IntelligentAIEngine(wsManager);
 
   // Handle WebSocket subscriptions
   wsManager.onMessage('subscribe', (ws, data) => {
@@ -40,8 +40,9 @@ async function main() {
       console.log(`Client subscribed to market data: ${venue}:${symbol}`);
       marketStreaming.startStreaming(venue, symbol, 1000); // 1 second updates
     } else if (channel === 'ai_signals') {
-      console.log(`Client subscribed to AI signals: ${venue}:${symbol}`);
-      aiEngine.startAnalysis(venue, symbol, 5000); // 5 second analysis
+      console.log(`🧠 Client subscribed to AI signals: ${venue}:${symbol}`);
+      console.log(`🤖 Starting intelligent analysis with demo trading...`);
+      aiEngine.startAnalysis(venue, symbol, 10000); // 10 second analysis
     }
   });
 
