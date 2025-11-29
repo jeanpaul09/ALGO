@@ -18,6 +18,13 @@ interface SimpleCandlestickChartProps {
   symbol: string;
 }
 
+interface ChartSignal {
+  price: number;
+  type: 'entry' | 'tp' | 'sl' | 'target';
+  label: string;
+  color: string;
+}
+
 export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
@@ -25,6 +32,9 @@ export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedInterval, setSelectedInterval] = useState('1h');
+  const [visibleCandles, setVisibleCandles] = useState(80); // Zoom level
+  const [candleOffset, setCandleOffset] = useState(0); // Pan offset
+  const [signals, setSignals] = useState<ChartSignal[]>([]); // Trading signals
 
   const intervals = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
@@ -69,7 +79,7 @@ export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) 
           volume: parseFloat(c.v || '0')
         }));
 
-        setCandles(candleData.slice(-80)); // Last 80 candles
+        setCandles(candleData); // Store all candles
 
         const latest = candleData[candleData.length - 1];
         const previous = candleData[candleData.length - 2];
@@ -129,11 +139,33 @@ export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) 
     );
   }
 
+  // Get visible candles based on zoom and pan
+  const displayCandles = candles.slice(
+    Math.max(0, candles.length - visibleCandles - candleOffset),
+    candles.length - candleOffset
+  );
+
   // Calculate min/max for scaling
-  const prices = candles.flatMap(c => [c.high, c.low]);
+  const prices = displayCandles.flatMap(c => [c.high, c.low]);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const priceRange = maxPrice - minPrice;
+
+  // Zoom handler (mouse wheel)
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 10 : -10;
+    setVisibleCandles(prev => Math.max(20, Math.min(200, prev + delta)));
+  };
+
+  // Pan handler (arrow keys for now, can add mouse drag later)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      setCandleOffset(prev => Math.min(candles.length - visibleCandles, prev + 10));
+    } else if (e.key === 'ArrowRight') {
+      setCandleOffset(prev => Math.max(0, prev - 10));
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -174,9 +206,14 @@ export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) 
       </div>
 
       {/* Chart Canvas */}
-      <div className="flex-1 p-4 bg-card/10">
+      <div
+        className="flex-1 p-4 bg-card/10 relative"
+        onWheel={handleWheel}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+      >
         <div className="h-full flex items-end gap-px">
-          {candles.map((candle, i) => {
+          {displayCandles.map((candle, i) => {
             const isGreen = candle.close >= candle.open;
             const bodyTop = Math.max(candle.open, candle.close);
             const bodyBottom = Math.min(candle.open, candle.close);
@@ -214,13 +251,38 @@ export function SimpleCandlestickChart({ symbol }: SimpleCandlestickChartProps) 
             );
           })}
         </div>
+
+        {/* Strategy Signal Overlays */}
+        {signals.map((signal, idx) => {
+          const pricePercent = ((signal.price - minPrice) / priceRange) * 100;
+          return (
+            <div
+              key={idx}
+              className="absolute left-0 right-0 flex items-center"
+              style={{ bottom: `${pricePercent}%` }}
+            >
+              <div className={`h-px flex-1 border-t-2 border-dashed`} style={{ borderColor: signal.color }} />
+              <div
+                className="px-2 py-0.5 text-xs font-bold rounded"
+                style={{ backgroundColor: signal.color, color: '#000' }}
+              >
+                {signal.label}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Zoom indicator */}
+        <div className="absolute top-2 left-2 text-xs text-muted-foreground bg-card/80 px-2 py-1 rounded">
+          {visibleCandles} candles {candleOffset > 0 && `(offset: ${candleOffset})`}
+        </div>
       </div>
 
       {/* Volume */}
       <div className="h-16 px-4 pb-3 bg-card/5 border-t border-border/30">
         <div className="h-full flex items-end gap-px">
-          {candles.map((candle, i) => {
-            const maxVolume = Math.max(...candles.map(c => c.volume));
+          {displayCandles.map((candle, i) => {
+            const maxVolume = Math.max(...displayCandles.map(c => c.volume));
             const volumeHeight = (candle.volume / maxVolume) * 100;
             const isGreen = candle.close >= candle.open;
 
