@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData } from 'lightweight-charts';
+import {
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type CandlestickData,
+  type LineData,
+} from 'lightweight-charts';
 
 interface Trade {
   time: number;
@@ -65,14 +71,16 @@ export function TradingChart({ symbol, data, trades, currentPrice }: TradingChar
 
     // Add trade markers
     const markers = trades.map(trade => ({
-      time: trade.time,
-      position: trade.type === 'LONG' ? 'belowBar' : 'aboveBar' as const,
+      time: trade.time as any,
+      position: (trade.type === 'LONG' ? 'belowBar' : 'aboveBar') as any,
       color: trade.type === 'LONG' ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)',
-      shape: 'arrowUp' as const,
+      shape: 'arrowUp' as any,
       text: `${trade.type} @ ${trade.entry.toFixed(2)}`,
     }));
 
-    candlestickSeries.setMarkers(markers);
+    if (markers.length > 0) {
+      candlestickSeries.setMarkers(markers);
+    }
 
     // Add TP/SL lines for open trades
     const openTrades = trades.filter(t => t.status === 'open');
