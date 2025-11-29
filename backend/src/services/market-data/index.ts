@@ -77,7 +77,7 @@ export class MarketDataService {
       },
     });
 
-    return cached.map((d) => ({
+    return cached.map((d: any) => ({
       timestamp: d.timestamp,
       open: d.open,
       high: d.high,
