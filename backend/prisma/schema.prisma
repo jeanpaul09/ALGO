@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Strategy {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  category    String   // "mean_reversion", "trend_following", "arbitrage", etc.
+  code        String   // Reference to strategy implementation
+  parameters  String   // JSON string of default parameters
+  markets     String   // JSON array of supported markets
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions  Session[]
+  backtests Backtest[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  strategyId String
+  strategy   Strategy @relation(fields: [strategyId], references: [id])
+  mode       String   // "DEMO" or "LIVE"
+  status     String   // "RUNNING", "STOPPED", "PAUSED", "ERROR"
+  venue      String   // "hyperliquid", "binance", etc.
+  symbol     String   // "BTC-PERP", "ETH-PERP", etc.
+  parameters String   // JSON string of runtime parameters
+  startedAt  DateTime @default(now())
+  stoppedAt  DateTime?
+
+  positions Position[]
+  trades    Trade[]
+  logs      SessionLog[]
+}
+
+model Position {
+  id              String   @id @default(uuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id])
+  symbol          String
+  side            String   // "LONG" or "SHORT"
+  size            Float
+  entryPrice      Float
+  currentPrice    Float
+  unrealizedPnl   Float
+  realizedPnl     Float
+  openedAt        DateTime @default(now())
+  closedAt        DateTime?
+  status          String   // "OPEN" or "CLOSED"
+
+  updatedAt       DateTime @updatedAt
+}
+
+model Trade {
+  id         String   @id @default(uuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [id])
+  symbol     String
+  side       String   // "BUY" or "SELL"
+  size       Float
+  price      Float
+  fee        Float
+  pnl        Float?
+  reason     String   // Why the trade was made
+  executedAt DateTime @default(now())
+  orderId    String?  // External order ID from exchange
+  mode       String   // "DEMO" or "LIVE"
+}
+
+model Backtest {
+  id          String   @id @default(uuid())
+  strategyId  String
+  strategy    Strategy @relation(fields: [strategyId], references: [id])
+  symbol      String
+  startDate   DateTime
+  endDate     DateTime
+  parameters  String   // JSON string of backtest parameters
+
+  // Results
+  totalReturn       Float
+  sharpeRatio       Float?
+  sortinoRatio      Float?
+  maxDrawdown       Float
+  winRate           Float
+  totalTrades       Int
+  profitableTrades  Int
+  averageWin        Float
+  averageLoss       Float
+
+  equityCurve   String   // JSON array of equity over time
+  drawdownCurve String   // JSON array of drawdown over time
+  tradeList     String   // JSON array of all trades
+
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  status      String   // "RUNNING", "COMPLETED", "FAILED"
+}
+
+model SessionLog {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  level     String   // "INFO", "WARN", "ERROR"
+  message   String
+  data      String?  // JSON string of additional data
+  timestamp DateTime @default(now())
+}
+
+model MarketData {
+  id        String   @id @default(uuid())
+  venue     String
+  symbol    String
+  timestamp DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Float
+  metadata  String?  // JSON string for venue-specific data (funding, mark price, etc.)
+
+  @@unique([venue, symbol, timestamp])
+  @@index([venue, symbol, timestamp])
+}
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

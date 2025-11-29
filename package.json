@@ -1,0 +1,24 @@
+{
+  "name": "ai-trading-lab",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspaces",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "npm run start --workspace=backend",
+    "start:frontend": "npm run start --workspace=frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "localtunnel": "^2.0.2"
+  }
+}
