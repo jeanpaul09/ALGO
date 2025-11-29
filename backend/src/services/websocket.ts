@@ -7,6 +7,7 @@ export interface WSMessage {
 
 export class WebSocketManager {
   private clients: Set<WebSocket> = new Set();
+  private messageHandlers: Map<string, (ws: WebSocket, data: any) => void> = new Map();
 
   constructor(private wss: WebSocketServer) {
     this.setupWebSocket();
@@ -42,8 +43,20 @@ export class WebSocketManager {
   }
 
   private handleMessage(ws: WebSocket, message: WSMessage) {
-    // Handle client-to-server messages if needed
-    console.log('Received message:', message);
+    // Check for registered handlers
+    const handler = this.messageHandlers.get(message.type);
+    if (handler) {
+      handler(ws, message.data);
+    } else {
+      console.log('Unhandled message type:', message.type);
+    }
+  }
+
+  /**
+   * Register a handler for a specific message type
+   */
+  onMessage(type: string, handler: (ws: WebSocket, data: any) => void) {
+    this.messageHandlers.set(type, handler);
   }
 
   sendToClient(client: WebSocket, message: WSMessage) {

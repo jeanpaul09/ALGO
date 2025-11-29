@@ -7,6 +7,8 @@ import { prisma } from './lib/prisma';
 import { setupRoutes } from './routes';
 import { WebSocketManager } from './services/websocket';
 import { TradingOrchestrator } from './services/trading-orchestrator';
+import { MarketStreamingService } from './services/market-streaming';
+import { AIAnalysisEngine } from './services/ai-analysis-engine';
 
 dotenv.config();
 
@@ -23,6 +25,35 @@ async function main() {
   // Initialize WebSocket
   const wss = new WebSocketServer({ server });
   const wsManager = new WebSocketManager(wss);
+
+  // Initialize Market Streaming
+  const marketStreaming = new MarketStreamingService(wsManager);
+
+  // Initialize AI Analysis Engine
+  const aiEngine = new AIAnalysisEngine(wsManager);
+
+  // Handle WebSocket subscriptions
+  wsManager.onMessage('subscribe', (ws, data) => {
+    const { channel, symbol, venue = 'hyperliquid' } = data;
+
+    if (channel === 'market') {
+      console.log(`Client subscribed to market data: ${venue}:${symbol}`);
+      marketStreaming.startStreaming(venue, symbol, 1000); // 1 second updates
+    } else if (channel === 'ai_signals') {
+      console.log(`Client subscribed to AI signals: ${venue}:${symbol}`);
+      aiEngine.startAnalysis(venue, symbol, 5000); // 5 second analysis
+    }
+  });
+
+  wsManager.onMessage('unsubscribe', (ws, data) => {
+    const { channel, symbol, venue = 'hyperliquid' } = data;
+
+    if (channel === 'market') {
+      marketStreaming.stopStreaming(venue, symbol);
+    } else if (channel === 'ai_signals') {
+      aiEngine.stopAnalysis(venue, symbol);
+    }
+  });
 
   // Initialize Trading Orchestrator
   const orchestrator = new TradingOrchestrator(wsManager);
