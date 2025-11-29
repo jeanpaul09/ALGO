@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { GlobalStatusBar } from '@/components/terminal/GlobalStatusBar';
 import { AIBrainFeed, BrainEntry } from '@/components/terminal/AIBrainFeed';
 import { StrategyControlCard, Strategy } from '@/components/terminal/StrategyControlCard';
 import { SimpleCandlestickChart } from '@/components/terminal/SimpleCandlestickChart';
 import { Badge } from '@/components/ui/badge';
 import { strategiesApi } from '@/lib/api';
+import { useWebSocket, WSMessage } from '@/lib/websocket';
 
 type AIMode = 'OFF' | 'DEMO' | 'LIVE';
 
@@ -16,9 +17,66 @@ export default function Terminal() {
   const [brainEntries, setBrainEntries] = useState<BrainEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // WebSocket message handler
+  const handleWSMessage = useCallback((message: WSMessage) => {
+    console.log('WS Message:', message.type, message.data);
+
+    switch (message.type) {
+      case 'ai_signal':
+        // AI analysis signals
+        const signal = message.data;
+        const validType = ['analysis', 'decision', 'trade', 'risk', 'signal'].includes(signal.type)
+          ? signal.type as 'analysis' | 'decision' | 'trade' | 'risk' | 'signal'
+          : 'analysis';
+        setBrainEntries(prev => [{
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          type: validType,
+          category: signal.category || 'Market',
+          title: signal.title || 'AI Analysis',
+          content: signal.content || signal.message,
+          sentiment: signal.sentiment as 'bullish' | 'bearish' | 'neutral' | undefined,
+          confidence: signal.confidence,
+          strategy: signal.strategy,
+          symbol: signal.symbol
+        }, ...prev].slice(0, 100)); // Keep last 100 entries
+        break;
+
+      case 'trade_executed':
+        // Trade execution notification
+        const tradeSentiment: 'bullish' | 'bearish' = message.data.side === 'BUY' ? 'bullish' : 'bearish';
+        setBrainEntries(prev => [{
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          type: 'trade' as const,
+          category: 'Execution',
+          title: `Trade Executed: ${message.data.side} ${message.data.symbol}`,
+          content: `Size: ${message.data.size} @ $${message.data.price}`,
+          sentiment: tradeSentiment,
+          confidence: 100
+        }, ...prev].slice(0, 100));
+        break;
+
+      case 'position_update':
+        // Position update
+        console.log('Position update:', message.data);
+        break;
+
+      case 'session_status':
+        // Session status change
+        console.log('Session status:', message.data);
+        break;
+
+      default:
+        console.log('Unhandled message type:', message.type);
+    }
+  }, []);
+
+  // Initialize WebSocket
+  const { connected, subscribe, unsubscribe } = useWebSocket(handleWSMessage);
+
   useEffect(() => {
     loadStrategies();
-    simulateBrainFeed();
   }, []);
 
   const loadStrategies = async () => {
@@ -53,34 +111,7 @@ export default function Terminal() {
     }
   };
 
-  const simulateBrainFeed = () => {
-    setBrainEntries([
-      {
-        id: '1',
-        timestamp: Date.now() - 30000,
-        type: 'analysis',
-        category: 'Market',
-        title: 'BTC Trend Analysis',
-        content: 'Price broke above 20-EMA with volume. RSI 62.',
-        sentiment: 'bullish',
-        confidence: 78,
-        strategy: 'Trend Following BTC',
-        symbol: 'BTC'
-      },
-      {
-        id: '2',
-        timestamp: Date.now() - 15000,
-        type: 'decision',
-        category: 'Trade',
-        title: 'LONG Entry Signal',
-        content: 'Entering 0.5 BTC long position.',
-        sentiment: 'bullish',
-        confidence: 82,
-        strategy: 'Trend Following BTC',
-        symbol: 'BTC'
-      }
-    ]);
-  };
+  // Removed simulateBrainFeed - using real WebSocket data now
 
   const handleModeChange = (mode: AIMode) => {
     setAIMode(mode);
@@ -92,12 +123,28 @@ export default function Terminal() {
         mode: 'OFF' as const,
         status: 'idle' as const
       })));
+      // Unsubscribe from AI signals
+      unsubscribe('ai_signals', 'BTC');
+    } else {
+      // Subscribe to AI signals when activating
+      subscribe('ai_signals', 'BTC');
+
+      setBrainEntries(prev => [{
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        type: 'decision' as const,
+        category: 'AI',
+        title: `🧠 AI Brain Activated`,
+        content: `Subscribing to real-time AI analysis for BTC. The AI will now analyze market conditions and provide trading insights.`,
+        sentiment: 'bullish' as const,
+        confidence: 100
+      }, ...prev]);
     }
 
-    setBrainEntries(prev => [...prev, {
+    setBrainEntries(prev => [{
       id: Date.now().toString(),
       timestamp: Date.now(),
-      type: 'decision',
+      type: 'decision' as const,
       category: 'System',
       title: `AI Mode: ${mode}`,
       content: `Global AI mode changed to ${mode}. ${
@@ -105,7 +152,7 @@ export default function Terminal() {
         mode === 'DEMO' ? 'Running in simulation mode.' :
         'LIVE trading enabled.'
       }`,
-    }]);
+    }, ...prev]);
   };
 
   const handleEmergencyStop = () => {
@@ -119,7 +166,7 @@ export default function Terminal() {
     setBrainEntries(prev => [...prev, {
       id: Date.now().toString(),
       timestamp: Date.now(),
-      type: 'risk',
+      type: 'risk' as const,
       category: 'Emergency',
       title: 'EMERGENCY STOP ACTIVATED',
       content: 'All strategies immediately stopped. All positions will be closed at market.',
@@ -141,7 +188,7 @@ export default function Terminal() {
       setBrainEntries(prev => [...prev, {
         id: Date.now().toString(),
         timestamp: Date.now(),
-        type: 'decision',
+        type: 'decision' as const,
         category: 'Strategy',
         title: `${strategy.name}: ${mode}`,
         content: `Strategy mode changed to ${mode}. ${
@@ -160,7 +207,7 @@ export default function Terminal() {
       setBrainEntries(prev => [...prev, {
         id: Date.now().toString(),
         timestamp: Date.now(),
-        type: 'analysis',
+        type: 'analysis' as const,
         category: 'Backtest',
         title: `Backtest: ${strategy.name}`,
         content: `Running 30-day historical backtest on BTC/USDC. Results will appear shortly.`,

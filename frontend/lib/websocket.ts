@@ -18,7 +18,7 @@ export function useWebSocket(onMessage: (message: WSMessage) => void) {
       ws.current = new WebSocket(WS_URL);
 
       ws.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected');
         setConnected(true);
       };
 
@@ -50,5 +50,21 @@ export function useWebSocket(onMessage: (message: WSMessage) => void) {
     };
   }, [onMessage]);
 
-  return { connected };
+  const send = (type: string, data: any) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type, data }));
+    } else {
+      console.warn('WebSocket not connected');
+    }
+  };
+
+  const subscribe = (channel: string, symbol: string, venue: string = 'hyperliquid') => {
+    send('subscribe', { channel, symbol, venue });
+  };
+
+  const unsubscribe = (channel: string, symbol: string, venue: string = 'hyperliquid') => {
+    send('unsubscribe', { channel, symbol, venue });
+  };
+
+  return { connected, send, subscribe, unsubscribe };
 }
