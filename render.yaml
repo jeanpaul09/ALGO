@@ -19,3 +19,7 @@ services:
         value: claude-3-5-sonnet-20241022
       - key: ENABLE_LIVE_TRADING
         value: false
+      - key: HYPERLIQUID_WALLET_ADDRESS
+        sync: false
+      - key: HYPERLIQUID_PRIVATE_KEY
+        sync: false
