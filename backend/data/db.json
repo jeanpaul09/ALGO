@@ -32,6 +32,39 @@
       "markets": "[\"BTC\",\"ETH\"]",
       "createdAt": "2025-11-29T03:12:50.141Z",
       "updatedAt": "2025-11-29T03:12:50.141Z"
+    },
+    {
+      "id": "e5b30dad-f855-42f1-adc7-1298c1e418a6",
+      "name": "SMA Crossover",
+      "description": "Simple Moving Average crossover strategy",
+      "category": "trend_following",
+      "code": "sma_crossover",
+      "parameters": "{\"fastPeriod\":10,\"slowPeriod\":30}",
+      "markets": "[\"BTC\",\"ETH\"]",
+      "createdAt": "2025-11-29T03:40:05.993Z",
+      "updatedAt": "2025-11-29T03:40:05.993Z"
+    },
+    {
+      "id": "c771b378-833d-43b8-9770-61017b14cf02",
+      "name": "RSI Mean Reversion",
+      "description": "RSI-based mean reversion strategy",
+      "category": "mean_reversion",
+      "code": "rsi_mean_reversion",
+      "parameters": "{\"rsiPeriod\":14,\"oversold\":30,\"overbought\":70}",
+      "markets": "[\"BTC\",\"ETH\"]",
+      "createdAt": "2025-11-29T03:40:05.994Z",
+      "updatedAt": "2025-11-29T03:40:05.994Z"
+    },
+    {
+      "id": "045418bb-53c5-49dd-aaa9-491ab80e8767",
+      "name": "Momentum",
+      "description": "Price momentum strategy",
+      "category": "momentum",
+      "code": "momentum",
+      "parameters": "{\"lookback\":20,\"threshold\":0.02}",
+      "markets": "[\"BTC\",\"ETH\"]",
+      "createdAt": "2025-11-29T03:40:05.995Z",
+      "updatedAt": "2025-11-29T03:40:05.995Z"
     }
   ],
   "backtests": [],
