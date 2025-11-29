@@ -2,6 +2,23 @@ import { BaseStrategy, StrategyContext, StrategySignal } from './base-strategy';
 import { MomentumScanner } from './momentum-scanner';
 import { MeanReversion } from './mean-reversion';
 import { SentimentFusion } from './sentiment-fusion';
+import { OrderFlowAnalyzer } from './order-flow-analyzer';
+import { LiquidationHunter } from './liquidation-hunter';
+import { SmartMoneyTracker } from './smart-money-tracker';
+import { VolumeProfile } from './volume-profile';
+import { BreakoutScanner } from './breakout-scanner';
+import { FibonacciTrader } from './fibonacci-trader';
+import { MarketStructure } from './market-structure';
+import { VWAPStrategy } from './vwap-strategy';
+import { DivergenceScanner } from './divergence-scanner';
+import { VolatilityBreakout } from './volatility-breakout';
+import { LiquiditySweep } from './liquidity-sweep';
+import { FundingRateArbitrage } from './funding-rate-arbitrage';
+import { CorrelationArbitrage } from './correlation-arbitrage';
+import { DeltaVolume } from './delta-volume';
+import { IcebergDetector } from './iceberg-detector';
+import { OptionsFlow } from './options-flow';
+import { TimeSalesFlow } from './time-sales-flow';
 
 /**
  * Strategy Arsenal
@@ -15,21 +32,35 @@ export class StrategyArsenal {
   }
 
   private initializeStrategies() {
-    // Technical Strategies
+    // Core Technical Strategies
     this.registerStrategy(new MomentumScanner());
     this.registerStrategy(new MeanReversion());
+    this.registerStrategy(new BreakoutScanner());
+    this.registerStrategy(new FibonacciTrader());
+    this.registerStrategy(new MarketStructure());
+    this.registerStrategy(new VWAPStrategy());
+    this.registerStrategy(new DivergenceScanner());
+    this.registerStrategy(new VolatilityBreakout());
+
+    // Institutional Flow Strategies
+    this.registerStrategy(new OrderFlowAnalyzer());
+    this.registerStrategy(new LiquidationHunter());
+    this.registerStrategy(new SmartMoneyTracker());
+    this.registerStrategy(new VolumeProfile());
+    this.registerStrategy(new LiquiditySweep());
+    this.registerStrategy(new DeltaVolume());
+    this.registerStrategy(new IcebergDetector());
+    this.registerStrategy(new TimeSalesFlow());
+
+    // Derivatives & Arbitrage Strategies
+    this.registerStrategy(new FundingRateArbitrage());
+    this.registerStrategy(new CorrelationArbitrage());
+    this.registerStrategy(new OptionsFlow());
 
     // Sentiment Strategies
     this.registerStrategy(new SentimentFusion());
 
-    // TODO: Add more strategies:
-    // - Order Flow Analyzer
-    // - Liquidation Hunter
-    // - Smart Money Tracker
-    // - Funding Rate Arbitrage
-    // - Volume Profile
-    // - Support/Resistance Breakout
-    // - etc.
+    console.log(`\n🎯 Strategy Arsenal loaded with ${this.strategies.size} institutional-grade strategies\n`);
   }
 
   private registerStrategy(strategy: BaseStrategy) {
