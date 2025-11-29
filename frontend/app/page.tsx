@@ -24,11 +24,14 @@ export default function Dashboard() {
   }, []);
 
   const loadDashboardData = async () => {
+    // Set loading to false immediately so UI shows
+    setLoading(false);
+
     try {
       const [sessionsRes, backtestsRes, strategiesRes] = await Promise.all([
-        sessionsApi.list(),
-        backtestsApi.list(),
-        strategiesApi.list(),
+        sessionsApi.list().catch(() => ({ data: [] })),
+        backtestsApi.list().catch(() => ({ data: [] })),
+        strategiesApi.list().catch(() => ({ data: [] })),
       ]);
 
       const activeSessions = sessionsRes.data.filter((s: any) => s.status === 'RUNNING');
@@ -36,8 +39,12 @@ export default function Dashboard() {
       // Calculate total PnL from active sessions
       let totalPnL = 0;
       for (const session of activeSessions) {
-        const sessionInfo = await sessionsApi.get(session.id);
-        totalPnL += sessionInfo.data.totalPnl || 0;
+        try {
+          const sessionInfo = await sessionsApi.get(session.id);
+          totalPnL += sessionInfo.data.totalPnl || 0;
+        } catch (e) {
+          // Skip failed session
+        }
       }
 
       setStats({
@@ -50,8 +57,7 @@ export default function Dashboard() {
       setSessions(activeSessions);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
+      // Data will remain at defaults (all zeros)
     }
   };
 
