@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
@@ -13,3 +13,9 @@ services:
         value: production
       - key: DATABASE_URL
         value: file:./data/db.sqlite
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-3-5-sonnet-20241022
+      - key: ENABLE_LIVE_TRADING
+        value: false
