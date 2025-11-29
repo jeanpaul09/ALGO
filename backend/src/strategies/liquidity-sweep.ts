@@ -1,5 +1,12 @@
 import { BaseStrategy, StrategyContext, StrategySignal } from './base-strategy';
 
+type LiquidityZones = {
+  zones: Array<{ level: number; type: 'high' | 'low'; strength: number }>;
+  nearLiquidity: boolean;
+  nearestLevel: number | null;
+  distance: number;
+};
+
 /**
  * Liquidity Sweep Strategy
  * Detects stop-loss hunts and liquidity grabs by smart money
@@ -56,12 +63,12 @@ export class LiquiditySweep extends BaseStrategy {
       reasoning = `Bearish liquidity sweep at $${sweep.level?.toFixed(2)}. Stop-loss hunt complete, ${(sweep.reversalStrength * 100).toFixed(0)}% reversal. Smart money distribution`;
     }
     // Potential sweep setup (approaching liquidity)
-    else if (liquidityZones.nearLiquidity && liquidityZones.distance < 1) {
-      const direction = currentPrice < liquidityZones.nearestLevel! ? 'down' : 'up';
+    else if (liquidityZones.nearLiquidity && liquidityZones.distance < 1 && liquidityZones.nearestLevel !== null) {
+      const direction = currentPrice < liquidityZones.nearestLevel ? 'down' : 'up';
       action = direction === 'down' ? 'BUY' : 'SELL';
       strength = Math.min(70, 55);
       confidence = Math.min(70, 56);
-      reasoning = `Approaching liquidity zone at $${liquidityZones.nearestLevel?.toFixed(2)}. Potential sweep setup. Wait for reversal`;
+      reasoning = `Approaching liquidity zone at $${liquidityZones.nearestLevel.toFixed(2)}. Potential sweep setup. Wait for reversal`;
     }
     // Failed sweep (swept but no volume)
     else if (sweep.type !== 'none' && !sweep.reversed) {
@@ -72,7 +79,7 @@ export class LiquiditySweep extends BaseStrategy {
     }
     else {
       const nearest = liquidityZones.nearestLevel;
-      reasoning = `No liquidity sweep detected. Nearest liquidity: $${nearest?.toFixed(2) || 'N/A'}`;
+      reasoning = `No liquidity sweep detected. Nearest liquidity: ${nearest !== null ? '$' + nearest.toFixed(2) : 'N/A'}`;
     }
 
     return {
@@ -90,7 +97,7 @@ export class LiquiditySweep extends BaseStrategy {
     };
   }
 
-  private findLiquidityZones(prices: number[]) {
+  private findLiquidityZones(prices: number[]): LiquidityZones {
     if (prices.length < 50) {
       return {
         zones: [],
@@ -140,7 +147,11 @@ export class LiquiditySweep extends BaseStrategy {
     };
   }
 
-  private detectSweep(prices: number[], liquidityZones: any, currentPrice: number) {
+  private detectSweep(
+    prices: number[],
+    liquidityZones: LiquidityZones,
+    currentPrice: number
+  ) {
     if (prices.length < 10) {
       return { type: 'none' as const, level: null, reversed: false, strength: 0, reversalStrength: 0 };
     }

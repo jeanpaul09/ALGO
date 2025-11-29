@@ -13,7 +13,7 @@ export class DeltaVolume extends BaseStrategy {
     );
   }
 
-  async analyze(currentPrice: number, context: StrategyContext): Promise<StrategySignal} {
+  async analyze(currentPrice: number, context: StrategyContext): Promise<StrategySignal> {
     const { priceHistory, volumeHistory, trades } = context;
 
     if (!volumeHistory || volumeHistory.length < 20) {
