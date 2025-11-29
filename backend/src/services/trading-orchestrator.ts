@@ -263,7 +263,7 @@ export class TradingOrchestrator {
 
     if (!session) return null;
 
-    const positions = session.positions.map((p) => ({
+    const positions = session.positions.map((p: any) => ({
       id: p.id,
       symbol: p.symbol,
       side: p.side as any,
@@ -275,7 +275,7 @@ export class TradingOrchestrator {
       openedAt: p.openedAt,
     }));
 
-    const totalPnl = session.trades.reduce((sum, t) => sum + (t.pnl || 0) - t.fee, 0);
+    const totalPnl = session.trades.reduce((sum: number, t: any) => sum + (t.pnl || 0) - t.fee, 0);
 
     return {
       id: session.id,
