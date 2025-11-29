@@ -1,5 +1,7 @@
 import { MarketDataService } from './market-data';
 import { WebSocketManager } from './websocket';
+import { StrategyArsenal } from '../strategies/strategy-arsenal';
+import { StrategyContext } from '../strategies/base-strategy';
 
 export interface AISignal {
   action: 'BUY' | 'SELL' | 'HOLD';
@@ -25,12 +27,16 @@ export interface AISignal {
 export class AIAnalysisEngine {
   private marketData: MarketDataService;
   private wsManager: WebSocketManager;
+  private strategyArsenal: StrategyArsenal;
   private analysisIntervals: Map<string, NodeJS.Timeout> = new Map();
   private priceHistory: Map<string, number[]> = new Map();
+  private volumeHistory: Map<string, number[]> = new Map();
 
   constructor(wsManager: WebSocketManager) {
     this.wsManager = wsManager;
     this.marketData = new MarketDataService();
+    this.strategyArsenal = new StrategyArsenal();
+    console.log('✓ AI Analysis Engine initialized with Strategy Arsenal');
   }
 
   /**
@@ -73,7 +79,7 @@ export class AIAnalysisEngine {
   }
 
   /**
-   * Run comprehensive AI analysis
+   * Run comprehensive AI analysis using Strategy Arsenal
    */
   private async runAnalysis(venue: string, symbol: string) {
     try {
@@ -92,25 +98,62 @@ export class AIAnalysisEngine {
         history.shift(); // Keep last 200 prices
       }
 
-      // Calculate technical indicators
-      const indicators = this.calculateIndicators(history, currentPrice);
+      // Update volume history (simulated for now)
+      if (!this.volumeHistory.has(key)) {
+        this.volumeHistory.set(key, []);
+      }
+      const volumeHist = this.volumeHistory.get(key)!;
+      const estimatedVolume = Math.random() * 100000 + 50000; // Would fetch real volume
+      volumeHist.push(estimatedVolume);
+      if (volumeHist.length > 200) {
+        volumeHist.shift();
+      }
 
-      // Detect key zones
-      const zones = this.detectZones(history, currentPrice);
+      // Build strategy context
+      const context: StrategyContext = {
+        priceHistory: history,
+        volumeHistory: volumeHist,
+        // Add more context as needed
+      };
 
-      // Analyze sentiment (simulated for now - would integrate real sources)
-      const sentiment = this.analyzeSentiment(symbol, currentPrice, history);
+      // Run all strategies through the arsenal
+      const strategySignals = await this.strategyArsenal.analyzeAll(currentPrice, context);
 
-      // Generate AI decision
-      const signal = this.generateSignal(indicators, zones, sentiment, currentPrice);
+      // Get ensemble decision
+      const ensemble = this.strategyArsenal.getEnsembleDecision(strategySignals);
 
-      // Broadcast AI signal
+      // Format for broadcast (convert to AISignal format)
+      const signal: AISignal = {
+        action: ensemble.action,
+        confidence: ensemble.confidence,
+        reasoning: ensemble.reasoning,
+        indicators: ensemble.strategyBreakdown.map(s => ({
+          name: s.name,
+          value: s.strength,
+          signal: s.action === 'BUY' ? 'bullish' as const : s.action === 'SELL' ? 'bearish' as const : 'neutral' as const,
+        })),
+      };
+
+      // Broadcast AI signal with strategy breakdown
       this.wsManager.broadcast({
         type: 'ai_signal',
         data: {
           symbol,
           venue,
           signal,
+          strategySignals: Array.from(strategySignals.entries()).map(([name, sig]) => ({
+            name,
+            action: sig.action,
+            confidence: sig.confidence,
+            strength: sig.strength,
+            reasoning: sig.reasoning,
+          })),
+          ensemble: {
+            action: ensemble.action,
+            confidence: ensemble.confidence,
+            activeStrategies: ensemble.strategyBreakdown.filter(s => s.action !== 'HOLD').length,
+            totalStrategies: ensemble.strategyBreakdown.length,
+          },
           timestamp: Date.now(),
         },
       });
