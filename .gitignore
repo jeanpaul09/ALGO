@@ -12,3 +12,4 @@ build/
 .idea/
 coverage/
 .turbo/
+tsconfig.tsbuildinfo
