@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { sessionsApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useWebSocket, WSMessage } from '@/lib/websocket';
-import { Play, Square, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Play, Square, TrendingUp, TrendingDown, AlertTriangle, Activity, Target, DollarSign, Clock } from 'lucide-react';
 
 export default function LiveTradingPage() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -17,7 +17,6 @@ export default function LiveTradingPage() {
   const [loading, setLoading] = useState(true);
 
   useWebSocket((message: WSMessage) => {
-    // Handle real-time updates
     if (message.type === 'position_update' || message.type === 'pnl_update' || message.type === 'trade_executed') {
       loadSessions();
     }
@@ -25,7 +24,7 @@ export default function LiveTradingPage() {
 
   useEffect(() => {
     loadSessions();
-    const interval = setInterval(loadSessions, 3000); // Refresh every 3 seconds
+    const interval = setInterval(loadSessions, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -35,7 +34,6 @@ export default function LiveTradingPage() {
       const runningSessions = res.data.filter((s: any) => s.status === 'RUNNING');
       setSessions(runningSessions);
 
-      // Load details for each session
       const detailsMap = new Map();
       for (const session of runningSessions) {
         const details = await sessionsApi.get(session.id);
@@ -62,131 +60,204 @@ export default function LiveTradingPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">Live Trading Console</h1>
-            <p className="text-muted-foreground">Monitor and control active trading sessions</p>
-          </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="container mx-auto p-8 space-y-8">
+            {/* Header */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-4xl font-bold tracking-tight">Live Trading Console</h1>
+                  <p className="text-lg text-muted-foreground">
+                    Monitor and control active trading sessions in real-time
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-sm font-medium text-emerald-500">{sessions.length} Active</span>
+                </div>
+              </div>
+            </div>
 
-          {loading ? (
-            <div className="text-center text-muted-foreground">Loading...</div>
-          ) : sessions.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Play className="mb-4 h-12 w-12 text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  No active sessions. Start a demo or live session from the Strategies page.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-6">
-              {sessions.map((session) => {
-                const details = sessionDetails.get(session.id);
-                const totalPnL = details?.totalPnl || 0;
+            {/* Sessions */}
+            {loading ? (
+              <Card className="border-border/50">
+                <CardContent className="flex items-center justify-center py-16">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : sessions.length === 0 ? (
+              <Card className="border-border/50 border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                    <Activity className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No Active Sessions</h3>
+                  <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+                    Start a demo or live session from the Strategies page to begin trading
+                  </p>
+                  <Button variant="outline" size="sm">
+                    <Play className="mr-2 h-4 w-4" />
+                    Browse Strategies
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {sessions.map((session) => {
+                  const details = sessionDetails.get(session.id);
+                  const totalPnL = details?.totalPnl || 0;
+                  const positions = details?.positions || [];
 
-                return (
-                  <Card key={session.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <CardTitle>{session.strategy.name}</CardTitle>
-                            <Badge variant={session.mode === 'LIVE' ? 'destructive' : 'secondary'}>
-                              {session.mode}
-                            </Badge>
-                            <Badge variant="success">{session.status}</Badge>
+                  return (
+                    <Card
+                      key={session.id}
+                      className="border-border/50 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50"
+                    >
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-3">
+                              <CardTitle className="text-2xl">{session.strategy.name}</CardTitle>
+                              <Badge
+                                variant={session.mode === 'LIVE' ? 'destructive' : 'secondary'}
+                                className="h-6"
+                              >
+                                {session.mode}
+                              </Badge>
+                              <Badge variant="outline" className="h-6 border-emerald-500/50 text-emerald-500">
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5" />
+                                {session.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1.5">
+                                <DollarSign className="h-4 w-4" />
+                                {session.venue}
+                              </span>
+                              <span>•</span>
+                              <span className="font-medium">{session.symbol}</span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1.5">
+                                <Clock className="h-4 w-4" />
+                                Started {formatDate(session.startedAt)}
+                              </span>
+                            </div>
                           </div>
-                          <CardDescription className="mt-1">
-                            {session.venue} • {session.symbol} • Started {formatDate(session.startedAt)}
-                          </CardDescription>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleStopSession(session.id)}
+                          >
+                            <Square className="mr-2 h-4 w-4" />
+                            Stop Session
+                          </Button>
                         </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleStopSession(session.id)}
-                        >
-                          <Square className="mr-2 h-4 w-4" />
-                          Stop
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-6 md:grid-cols-2">
-                        {/* PnL Card */}
-                        <div className="rounded-lg border p-4">
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-sm font-medium text-muted-foreground">Total PnL</span>
-                            {totalPnL >= 0 ? (
-                              <TrendingUp className="h-5 w-5 text-green-500" />
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        {/* PnL and Positions Grid */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {/* PnL Card */}
+                          <div className="rounded-lg border border-border/50 bg-card p-6">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-sm font-medium text-muted-foreground">Total PnL</span>
+                              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                totalPnL >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                              }`}>
+                                {totalPnL >= 0 ? (
+                                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                ) : (
+                                  <TrendingDown className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                            </div>
+                            <div
+                              className={`text-3xl font-bold ${
+                                totalPnL >= 0 ? 'text-emerald-500' : 'text-red-500'
+                              }`}
+                            >
+                              {formatCurrency(totalPnL)}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {totalPnL >= 0 ? '+' : ''}{((totalPnL / 10000) * 100).toFixed(2)}% of capital
+                            </p>
+                          </div>
+
+                          {/* Positions Card */}
+                          <div className="rounded-lg border border-border/50 bg-card p-6">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-sm font-medium text-muted-foreground">Open Positions</span>
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Target className="h-4 w-4 text-primary" />
+                              </div>
+                            </div>
+                            {positions.length > 0 ? (
+                              <div className="space-y-3">
+                                {positions.map((pos: any) => (
+                                  <div key={pos.id} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Badge
+                                        variant={pos.side === 'LONG' ? 'default' : 'destructive'}
+                                        className="h-5 text-xs"
+                                      >
+                                        {pos.side}
+                                      </Badge>
+                                      <span className="text-sm font-medium">{pos.symbol}</span>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-medium">
+                                        {pos.size.toFixed(4)} @ {formatCurrency(pos.entryPrice)}
+                                      </div>
+                                      <div
+                                        className={`text-xs ${
+                                          pos.unrealizedPnl >= 0 ? 'text-emerald-500' : 'text-red-500'
+                                        }`}
+                                      >
+                                        {pos.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             ) : (
-                              <TrendingDown className="h-5 w-5 text-red-500" />
+                              <div className="flex flex-col items-center justify-center py-6">
+                                <div className="text-3xl font-bold text-muted-foreground/20 mb-1">0</div>
+                                <p className="text-xs text-muted-foreground">No open positions</p>
+                              </div>
                             )}
                           </div>
-                          <div
-                            className={`text-3xl font-bold ${
-                              totalPnL >= 0 ? 'text-green-500' : 'text-red-500'
-                            }`}
-                          >
-                            {formatCurrency(totalPnL)}
-                          </div>
                         </div>
 
-                        {/* Positions */}
-                        <div className="rounded-lg border p-4">
-                          <div className="mb-2 text-sm font-medium text-muted-foreground">
-                            Open Positions
-                          </div>
-                          {details?.positions && details.positions.length > 0 ? (
-                            <div className="space-y-2">
-                              {details.positions.map((pos: any) => (
-                                <div key={pos.id} className="flex items-center justify-between">
-                                  <div>
-                                    <Badge variant={pos.side === 'LONG' ? 'success' : 'destructive'}>
-                                      {pos.side}
-                                    </Badge>
-                                    <span className="ml-2 text-sm">{pos.symbol}</span>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-sm font-medium">
-                                      {pos.size.toFixed(4)} @ {formatCurrency(pos.entryPrice)}
-                                    </div>
-                                    <div
-                                      className={`text-xs ${
-                                        pos.unrealizedPnl >= 0 ? 'text-green-500' : 'text-red-500'
-                                      }`}
-                                    >
-                                      Unrealized: {formatCurrency(pos.unrealizedPnl)}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                        {/* Warning for LIVE mode */}
+                        {session.mode === 'LIVE' && (
+                          <div className="rounded-lg border border-red-500/50 bg-red-500/5 p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="h-8 w-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                                <AlertTriangle className="h-4 w-4 text-red-500" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-red-500 mb-1">Live Trading Active</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  This session is trading with real funds on Hyperliquid. Monitor closely and ensure risk parameters are appropriate.
+                                </p>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">No open positions</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Warning for LIVE mode */}
-                      {session.mode === 'LIVE' && (
-                        <div className="mt-4 flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 p-3">
-                          <AlertTriangle className="h-5 w-5 text-red-500" />
-                          <span className="text-sm text-red-500">
-                            This session is trading with real funds. Monitor closely.
-                          </span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
