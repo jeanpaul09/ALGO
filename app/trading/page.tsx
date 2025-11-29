@@ -26,17 +26,70 @@ export default function InstitutionalTradingTerminal() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
   const [aiSignal, setAiSignal] = useState<AISignal | null>(null);
 
-  // WebSocket for real-time updates
-  const { isConnected, lastUpdate, lastSignal } = useWebSocket({
+  // WebSocket for real-time updates (only when trading is active)
+  const { isConnected, lastUpdate, lastSignal, sendMessage } = useWebSocket({
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001',
     symbol,
     onMarketUpdate: useCallback((update: MarketUpdate) => {
       setCurrentPrice(update.price);
-    }, []),
+
+      // Update chart with new price
+      if (candleData.length > 0) {
+        const newCandles = [...candleData];
+        const lastCandle = newCandles[newCandles.length - 1];
+        const updatedCandle = {
+          ...lastCandle,
+          close: update.price,
+          high: Math.max(lastCandle.high, update.price),
+          low: Math.min(lastCandle.low, update.price),
+        };
+        newCandles[newCandles.length - 1] = updatedCandle;
+        setCandleData(newCandles);
+      }
+    }, [candleData]),
     onAISignal: useCallback((signal: AISignal) => {
       setAiSignal(signal);
     }, []),
   });
+
+  // Subscribe to WebSocket channels when trading starts
+  useEffect(() => {
+    if (isTrading && sendMessage) {
+      // Subscribe to market data
+      sendMessage({
+        type: 'subscribe',
+        channel: 'market',
+        symbol,
+        venue,
+      });
+
+      // Subscribe to AI signals
+      sendMessage({
+        type: 'subscribe',
+        channel: 'ai_signals',
+        symbol,
+        venue,
+      });
+    }
+
+    return () => {
+      if (sendMessage) {
+        // Unsubscribe when stopping
+        sendMessage({
+          type: 'unsubscribe',
+          channel: 'market',
+          symbol,
+          venue,
+        });
+        sendMessage({
+          type: 'unsubscribe',
+          channel: 'ai_signals',
+          symbol,
+          venue,
+        });
+      }
+    };
+  }, [isTrading, sendMessage, symbol, venue]);
 
   // Initial data fetch
   useEffect(() => {
@@ -151,34 +204,46 @@ export default function InstitutionalTradingTerminal() {
   const startDemo = async () => {
     try {
       setError(null);
-      const strategiesResponse = await strategiesApi.list();
-      let strategyId = strategiesResponse.data[0]?.id;
+      setIsTrading(true); // Enable trading immediately to activate WebSocket
 
-      if (!strategyId) {
-        const createResponse = await strategiesApi.create({
-          name: 'AI Momentum Strategy',
-          description: 'Institutional-grade AI momentum trading',
-          code: 'class AIStrategy { analyze() { return { action: "HOLD", reason: "AI Analysis" }; } }',
+      // Try to create backend session
+      try {
+        const strategiesResponse = await strategiesApi.list();
+        let strategyId = strategiesResponse.data[0]?.id;
+
+        if (!strategyId) {
+          const createResponse = await strategiesApi.create({
+            name: 'AI Momentum Strategy',
+            description: 'Institutional-grade AI momentum trading',
+            code: 'class AIStrategy { analyze() { return { action: "HOLD", reason: "AI Analysis" }; } }',
+            parameters: {},
+          });
+          strategyId = createResponse.data.id;
+        }
+
+        const response = await sessionsApi.start({
+          strategyId,
+          mode: 'DEMO',
+          venue,
+          symbol,
           parameters: {},
         });
-        strategyId = createResponse.data.id;
+
+        setActiveSession({ id: response.data.id, status: 'RUNNING', mode: 'DEMO' });
+        console.log('✅ Backend session started:', response.data.id);
+      } catch (backendErr) {
+        console.warn('Backend unavailable, running in demo mode with live market data');
+        setError('Backend unavailable. Using live market data in demo mode.');
       }
 
-      const response = await sessionsApi.start({
-        strategyId,
-        mode: 'DEMO',
-        venue,
-        symbol,
-        parameters: {},
-      });
-
-      setActiveSession({ id: response.data.id, status: 'RUNNING', mode: 'DEMO' });
-      setIsTrading(true);
+      // Generate initial data if needed
+      if (candleData.length === 0) {
+        generateMockData();
+      }
     } catch (err: any) {
       console.error('Failed to start demo:', err);
-      // Start in demo mode anyway
-      setIsTrading(true);
-      generateMockData();
+      setError(err.message || 'Failed to start trading');
+      setIsTrading(false);
     }
   };
 
