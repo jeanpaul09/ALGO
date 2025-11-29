@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, TrendingUp, LineChart, Activity, Settings, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, LineChart, Activity, Settings, BarChart3, Brain } from 'lucide-react';
 
 const navigation = [
+  { name: 'Command Center', href: '/command-center', icon: Brain },
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Trading Terminal', href: '/trading', icon: BarChart3 },
   { name: 'Strategies', href: '/strategies', icon: TrendingUp },
