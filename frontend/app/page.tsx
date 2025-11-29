@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import { GlobalStatusBar } from '@/components/terminal/GlobalStatusBar';
 import { AIBrainFeed, BrainEntry } from '@/components/terminal/AIBrainFeed';
 import { StrategyControlCard, Strategy } from '@/components/terminal/StrategyControlCard';
+import { SimpleCandlestickChart } from '@/components/terminal/SimpleCandlestickChart';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { strategiesApi } from '@/lib/api';
-import { TrendingUp, BarChart2 } from 'lucide-react';
 
 type AIMode = 'OFF' | 'DEMO' | 'LIVE';
 
@@ -85,34 +84,58 @@ export default function Terminal() {
 
   const handleModeChange = (mode: AIMode) => {
     setAIMode(mode);
+
+    // Update all strategies when global mode changes
+    if (mode === 'OFF') {
+      setStrategies(prev => prev.map(s => ({
+        ...s,
+        mode: 'OFF' as const,
+        status: 'idle' as const
+      })));
+    }
+
     setBrainEntries(prev => [...prev, {
       id: Date.now().toString(),
       timestamp: Date.now(),
       type: 'decision',
       category: 'System',
       title: `AI Mode: ${mode}`,
-      content: `Global mode changed to ${mode}`,
+      content: `Global AI mode changed to ${mode}. ${
+        mode === 'OFF' ? 'All strategies stopped.' :
+        mode === 'DEMO' ? 'Running in simulation mode.' :
+        'LIVE trading enabled.'
+      }`,
     }]);
   };
 
   const handleEmergencyStop = () => {
     setAIMode('OFF');
-    setStrategies(prev => prev.map(s => ({ ...s, mode: 'OFF' as const, status: 'idle' as const })));
+    setStrategies(prev => prev.map(s => ({
+      ...s,
+      mode: 'OFF' as const,
+      status: 'idle' as const
+    })));
+
     setBrainEntries(prev => [...prev, {
       id: Date.now().toString(),
       timestamp: Date.now(),
       type: 'risk',
       category: 'Emergency',
-      title: 'EMERGENCY STOP',
-      content: 'All strategies stopped',
+      title: 'EMERGENCY STOP ACTIVATED',
+      content: 'All strategies immediately stopped. All positions will be closed at market.',
       confidence: 100
     }]);
   };
 
   const handleStrategyModeChange = (strategyId: string, mode: 'OFF' | 'DEMO' | 'LIVE') => {
     setStrategies(prev => prev.map(s =>
-      s.id === strategyId ? { ...s, mode, status: mode === 'OFF' ? 'idle' as const : 'scanning' as const } : s
+      s.id === strategyId ? {
+        ...s,
+        mode,
+        status: mode === 'OFF' ? 'idle' as const : 'scanning' as const
+      } : s
     ));
+
     const strategy = strategies.find(s => s.id === strategyId);
     if (strategy) {
       setBrainEntries(prev => [...prev, {
@@ -121,7 +144,11 @@ export default function Terminal() {
         type: 'decision',
         category: 'Strategy',
         title: `${strategy.name}: ${mode}`,
-        content: `Mode changed to ${mode}`,
+        content: `Strategy mode changed to ${mode}. ${
+          mode === 'OFF' ? 'Strategy stopped.' :
+          mode === 'DEMO' ? 'Running simulation.' :
+          'Trading live with real funds.'
+        }`,
         strategy: strategy.name
       }]);
     }
@@ -136,7 +163,7 @@ export default function Terminal() {
         type: 'analysis',
         category: 'Backtest',
         title: `Backtest: ${strategy.name}`,
-        content: `Running 30-day backtest on BTC/USDC`,
+        content: `Running 30-day historical backtest on BTC/USDC. Results will appear shortly.`,
         strategy: strategy.name
       }]);
     }
@@ -201,47 +228,7 @@ export default function Terminal() {
 
         {/* Chart Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Chart Header */}
-          <div className="px-4 py-2 border-b border-border/30 bg-card/5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-sm font-bold">BTC/USDC</h2>
-                <Badge variant="outline" className="h-5 text-xs">Hyperliquid</Badge>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold">$96,234.50</span>
-                  <div className="flex items-center gap-1 text-emerald-500">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-xs font-semibold">+2.34%</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                {['1m', '5m', '1h', '4h', '1d'].map((tf) => (
-                  <Button
-                    key={tf}
-                    variant={tf === '1h' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-6 px-2.5 text-xs"
-                  >
-                    {tf}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Chart Canvas */}
-          <div className="flex-1 bg-card/10 flex items-center justify-center p-6">
-            <div className="flex flex-col items-center justify-center text-center max-w-md">
-              <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <BarChart2 className="h-10 w-10 text-primary/60" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">TradingView Chart</h3>
-              <p className="text-sm text-muted-foreground">
-                Advanced chart with AI overlays will integrate here
-              </p>
-            </div>
-          </div>
+          <SimpleCandlestickChart symbol="BTC" interval="1h" />
         </div>
 
         {/* AI Brain Feed */}
