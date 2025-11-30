@@ -5,6 +5,7 @@ import { GlobalStatusBar } from '@/components/terminal/GlobalStatusBar';
 import { AIBrainFeed, BrainEntry } from '@/components/terminal/AIBrainFeed';
 import { StrategyControlCard, Strategy } from '@/components/terminal/StrategyControlCard';
 import { AdvancedChart } from '@/components/terminal/AdvancedChart';
+import { PerformancePanel } from '@/components/terminal/PerformancePanel';
 import { Badge } from '@/components/ui/badge';
 import { strategiesApi } from '@/lib/api';
 import { useWebSocket, WSMessage } from '@/lib/websocket';
@@ -16,6 +17,7 @@ export default function Terminal() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [brainEntries, setBrainEntries] = useState<BrainEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tradingStats, setTradingStats] = useState<any>(null);
 
   // WebSocket message handler
   const handleWSMessage = useCallback((message: WSMessage) => {
@@ -80,6 +82,7 @@ export default function Terminal() {
       case 'trading_stats':
         // Trading statistics update
         console.log('Trading stats:', message.data);
+        setTradingStats(message.data);
         break;
 
       case 'chart_signals':
@@ -306,9 +309,22 @@ export default function Terminal() {
           <AdvancedChart symbol="BTC" />
         </div>
 
-        {/* AI Brain Feed */}
-        <div className="w-72 border-l border-border/30 bg-card/5">
-          <AIBrainFeed entries={brainEntries} />
+        {/* Right Panel - Split between Performance and AI Brain */}
+        <div className="w-80 border-l border-border/30 bg-card/5 flex flex-col">
+          {/* Performance Panel */}
+          <div className="h-96 border-b border-border/30">
+            <div className="p-3 border-b border-border/30">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Performance
+              </h3>
+            </div>
+            <PerformancePanel stats={tradingStats} />
+          </div>
+
+          {/* AI Brain Feed */}
+          <div className="flex-1 min-h-0">
+            <AIBrainFeed entries={brainEntries} />
+          </div>
         </div>
       </div>
     </div>

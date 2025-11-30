@@ -88,9 +88,20 @@ export class IntelligentAIEngine {
       history.push(currentPrice);
       if (history.length > 200) history.shift();
 
-      // Need at least 50 candles for analysis
-      if (history.length < 50) {
-        console.log(`Building price history... (${history.length}/50)`);
+      // Need at least 10 candles for basic analysis
+      if (history.length < 10) {
+        console.log(`📊 Building price history... (${history.length}/10)`);
+        this.wsManager.broadcast({
+          type: 'ai_signal',
+          data: {
+            type: 'analysis',
+            category: 'System',
+            title: 'Building Price History',
+            content: `Collecting market data... (${history.length}/10 candles)`,
+            symbol,
+            timestamp: Date.now(),
+          }
+        });
         return;
       }
 
@@ -111,8 +122,25 @@ export class IntelligentAIEngine {
       // Broadcast analysis to frontend
       this.broadcastAnalysis(symbol, currentPrice, analysis, decision);
 
+      // Broadcast AI decision
+      console.log(`🤖 AI Decision for ${symbol}: ${decision.action} (Confidence: ${decision.confidence}%)`);
+      this.wsManager.broadcast({
+        type: 'ai_signal',
+        data: {
+          type: 'decision',
+          category: 'AI Decision',
+          title: `AI: ${decision.action} ${symbol}`,
+          content: decision.reasoning,
+          sentiment: decision.action === 'BUY' ? 'bullish' : decision.action === 'SELL' ? 'bearish' : 'neutral',
+          confidence: decision.confidence,
+          symbol,
+          timestamp: Date.now(),
+        }
+      });
+
       // Execute trade if decision is BUY or SELL
       if (decision.action !== 'HOLD') {
+        console.log(`💰 Executing ${decision.action} trade for ${symbol} at $${currentPrice}`);
         await this.executeTrade(symbol, currentPrice, decision, analysis);
       }
 
