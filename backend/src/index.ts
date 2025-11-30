@@ -114,6 +114,17 @@ async function main() {
     console.log(`🚀 AI Trading Lab Backend running on port ${PORT}`);
     console.log(`📊 WebSocket server ready`);
     console.log(`🔒 Live trading: ${process.env.ENABLE_LIVE_TRADING === 'true' ? 'ENABLED' : 'DISABLED'}`);
+
+    // Keep-alive ping to prevent Render spin-down (free tier workaround)
+    if (process.env.NODE_ENV === 'production') {
+      const keepAliveInterval = setInterval(() => {
+        fetch(`http://localhost:${PORT}/health`)
+          .then(() => console.log('⏰ Keep-alive ping successful'))
+          .catch((err) => console.error('⚠️  Keep-alive ping failed:', err));
+      }, 5 * 60 * 1000); // Ping every 5 minutes
+
+      console.log('⏰ Keep-alive enabled (prevents Render spin-down)');
+    }
   });
 
   // Graceful shutdown
