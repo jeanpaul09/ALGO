@@ -15,29 +15,31 @@ export class WebSocketManager {
 
   private setupWebSocket() {
     this.wss.on('connection', (ws: WebSocket) => {
-      console.log('New WebSocket client connected');
+      console.log('✅ New WebSocket client connected. Total clients:', this.clients.size + 1);
       this.clients.add(ws);
 
       ws.on('message', (message: string) => {
         try {
           const data = JSON.parse(message.toString());
+          console.log('📩 WebSocket message received:', data);
           this.handleMessage(ws, data);
         } catch (error) {
-          console.error('Invalid WebSocket message:', error);
+          console.error('❌ Invalid WebSocket message:', error);
         }
       });
 
       ws.on('close', () => {
-        console.log('WebSocket client disconnected');
+        console.log('❌ WebSocket client disconnected. Total clients:', this.clients.size - 1);
         this.clients.delete(ws);
       });
 
       ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        console.error('❌ WebSocket error:', error);
         this.clients.delete(ws);
       });
 
       // Send initial connection confirmation
+      console.log('📤 Sending connection confirmation to client');
       this.sendToClient(ws, { type: 'connected', data: { timestamp: new Date() } });
     });
   }
@@ -46,9 +48,10 @@ export class WebSocketManager {
     // Check for registered handlers
     const handler = this.messageHandlers.get(message.type);
     if (handler) {
+      console.log(`🔧 Calling handler for message type: ${message.type}`);
       handler(ws, message.data);
     } else {
-      console.log('Unhandled message type:', message.type);
+      console.log(`⚠️  Unhandled message type: ${message.type}`);
     }
   }
 

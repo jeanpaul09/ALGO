@@ -299,12 +299,16 @@ export class DemoTradingEngine {
     const openPositions = Array.from(this.positions.values()).filter(p => p.status === 'OPEN');
     const closedTrades = this.trades.filter(t => t.pnl !== undefined);
     const winningTrades = closedTrades.filter(t => (t.pnl || 0) > 0);
+    const losingTrades = closedTrades.filter(t => (t.pnl || 0) < 0);
 
     return {
       balance: this.balance,
       totalReturn: this.getTotalReturn(),
-      openPositions: openPositions.length,
+      openPositions: openPositions, // Return array, not count
+      closedPositions: closedTrades.slice(-10).reverse(), // Last 10 closed trades
       totalTrades: closedTrades.length,
+      winningTrades: winningTrades.length,
+      losingTrades: losingTrades.length,
       winRate: closedTrades.length > 0 ? (winningTrades.length / closedTrades.length) * 100 : 0,
       totalPnL: this.balance - this.initialBalance,
       unrealizedPnL: this.getTotalPnL(),

@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { GlobalStatusBar } from '@/components/terminal/GlobalStatusBar';
 import { AIBrainFeed, BrainEntry } from '@/components/terminal/AIBrainFeed';
 import { StrategyControlCard, Strategy } from '@/components/terminal/StrategyControlCard';
-import { SimpleCandlestickChart } from '@/components/terminal/SimpleCandlestickChart';
+import { AdvancedChart } from '@/components/terminal/AdvancedChart';
+import { PerformancePanel } from '@/components/terminal/PerformancePanel';
 import { Badge } from '@/components/ui/badge';
 import { strategiesApi } from '@/lib/api';
 import { useWebSocket, WSMessage } from '@/lib/websocket';
@@ -16,6 +17,7 @@ export default function Terminal() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [brainEntries, setBrainEntries] = useState<BrainEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tradingStats, setTradingStats] = useState<any>(null);
 
   // WebSocket message handler
   const handleWSMessage = useCallback((message: WSMessage) => {
@@ -60,6 +62,35 @@ export default function Terminal() {
       case 'position_update':
         // Position update
         console.log('Position update:', message.data);
+        break;
+
+      case 'position_closed':
+        // Position closed notification
+        const closedSentiment: 'bullish' | 'bearish' = message.data.pnl >= 0 ? 'bullish' : 'bearish';
+        setBrainEntries(prev => [{
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          type: 'trade' as const,
+          category: 'Position Closed',
+          title: `Position Closed: ${message.data.trade.symbol}`,
+          content: `P&L: $${message.data.pnl.toFixed(2)} | Balance: $${message.data.balance.toFixed(2)} | Return: ${message.data.totalReturn.toFixed(2)}%`,
+          sentiment: closedSentiment,
+          confidence: 100
+        }, ...prev].slice(0, 100));
+        break;
+
+      case 'trading_stats':
+        // Trading statistics update
+        console.log('Trading stats:', message.data);
+        setTradingStats(message.data);
+        break;
+
+      case 'chart_signals':
+        // Chart signals from AI/Demo Trading
+        console.log('Chart signals received:', message.data.signals);
+        if (typeof window !== 'undefined' && (window as any).addChartSignals) {
+          (window as any).addChartSignals(message.data.signals);
+        }
         break;
 
       case 'session_status':
@@ -275,12 +306,25 @@ export default function Terminal() {
 
         {/* Chart Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <SimpleCandlestickChart symbol="BTC" />
+          <AdvancedChart symbol="BTC" />
         </div>
 
-        {/* AI Brain Feed */}
-        <div className="w-72 border-l border-border/30 bg-card/5">
-          <AIBrainFeed entries={brainEntries} />
+        {/* Right Panel - Split between Performance and AI Brain */}
+        <div className="w-80 border-l border-border/30 bg-card/5 flex flex-col">
+          {/* Performance Panel */}
+          <div className="h-96 border-b border-border/30">
+            <div className="p-3 border-b border-border/30">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Performance
+              </h3>
+            </div>
+            <PerformancePanel stats={tradingStats} />
+          </div>
+
+          {/* AI Brain Feed */}
+          <div className="flex-1 min-h-0">
+            <AIBrainFeed entries={brainEntries} />
+          </div>
         </div>
       </div>
     </div>

@@ -134,16 +134,16 @@ export function AdvancedChart({ symbol, onSignalsUpdate }: AdvancedChartProps) {
       const data = await response.json();
 
       if (data && Array.isArray(data) && data.length > 0) {
-        const candleData: CandlestickData[] = data.map((c: any) => ({
-          time: c.t / 1000, // Convert to seconds
+        const candleData = data.map((c: any) => ({
+          time: c.t / 1000 as any, // Convert to seconds
           open: parseFloat(c.o),
           high: parseFloat(c.h),
           low: parseFloat(c.l),
           close: parseFloat(c.c),
         }));
 
-        const volumeData: LineData[] = data.map((c: any) => ({
-          time: c.t / 1000,
+        const volumeData = data.map((c: any) => ({
+          time: c.t / 1000 as any,
           value: parseFloat(c.v || '0'),
           color: parseFloat(c.c) >= parseFloat(c.o) ? '#26a69a' : '#ef5350',
         }));
