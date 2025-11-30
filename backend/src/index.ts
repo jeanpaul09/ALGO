@@ -36,13 +36,31 @@ async function main() {
   wsManager.onMessage('subscribe', (ws, data) => {
     const { channel, symbol, venue = 'hyperliquid' } = data;
 
+    console.log(`📡 WebSocket subscription received:`, { channel, symbol, venue });
+
     if (channel === 'market') {
-      console.log(`Client subscribed to market data: ${venue}:${symbol}`);
+      console.log(`📊 Client subscribed to market data: ${venue}:${symbol}`);
       marketStreaming.startStreaming(venue, symbol, 1000); // 1 second updates
     } else if (channel === 'ai_signals') {
       console.log(`🧠 Client subscribed to AI signals: ${venue}:${symbol}`);
       console.log(`🤖 Starting intelligent analysis with demo trading...`);
-      aiEngine.startAnalysis(venue, symbol, 10000); // 10 second analysis
+
+      // Start analysis and catch errors
+      aiEngine.startAnalysis(venue, symbol, 10000).catch((error: any) => {
+        console.error('❌ Error starting AI analysis:', error);
+        wsManager.broadcast({
+          type: 'ai_signal',
+          data: {
+            type: 'risk',
+            category: 'Error',
+            title: 'AI Failed to Start',
+            content: `Error: ${error.message}`,
+            timestamp: Date.now(),
+          }
+        });
+      });
+    } else {
+      console.log(`⚠️  Unknown channel subscription: ${channel}`);
     }
   });
 
@@ -66,6 +84,29 @@ async function main() {
   // Health check
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Debug endpoint to manually trigger AI analysis
+  app.post('/debug/trigger-ai', async (req, res) => {
+    try {
+      console.log('🔧 Manual AI trigger requested');
+      const { venue = 'hyperliquid', symbol = 'BTC' } = req.body;
+
+      // Start analysis
+      await aiEngine.startAnalysis(venue, symbol, 10000);
+
+      res.json({
+        success: true,
+        message: `AI analysis started for ${venue}:${symbol}`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Error triggering AI:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   });
 
   // Start server
